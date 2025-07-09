@@ -75,7 +75,7 @@ def init_bot(retries=3, delay=10):
             if attempt < retries - 1:
                 time.sleep(delay)
     logging.error("Failed to initialize bot after retries. Exiting.")
-    exit(1)
+    sys.exit(1)
 
 bot = init_bot()
 
@@ -99,7 +99,7 @@ def init_db():
                 logging.info("Database initialized successfully.")
         except sqlite3.Error as e:
             logging.error(f"Database initialization error: {str(e)}")
-            exit(1)
+            sys.exit(1)
 
 # Generate 50 unique access codes
 def generate_access_codes():
@@ -150,7 +150,7 @@ cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
 face_cascade = cv2.CascadeClassifier(cascade_path)
 if face_cascade.empty():
     logging.error("Error: Could not load haarcascade_frontalface_default.xml")
-    exit(1)
+    sys.exit(1)
 
 # Generate random filename in temp directory
 def generate_random_filename(prefix=""):
@@ -234,14 +234,14 @@ def process_image(image_path, max_size_mb=10):
         # Apply global transformations for hash differences
         height, width = image.shape[:2]
         center = (width // 2, height // 2)
-        angle = random.uniform(-15, 15)  # Stronger rotation
+        angle = random.uniform(-20, 20)  # Stronger rotation
         scale = random.uniform(0.9, 1.1)  # Random scaling
         M = cv2.getRotationMatrix2D(center, angle, scale)
         image = cv2.warpAffine(image, M, (width, height), borderMode=cv2.BORDER_REPLICATE)
         logging.info(f"Applied global rotation: {angle} degrees, scale: {scale}")
 
         # Apply color shift
-        color_shift = np.random.randint(-20, 21, size=(3,))
+        color_shift = np.random.randint(-30, 31, size=(3,))
         image = image.astype(np.float32)
         for channel in range(3):
             image[:, :, channel] += color_shift[channel]
@@ -253,22 +253,22 @@ def process_image(image_path, max_size_mb=10):
         logging.info(f"Detected {len(faces)} faces")
 
         if len(faces) > 0:
-            blur_kernel = 11  # Stronger blur
-            blur_sigma = 4.0  # Stronger sigma
+            blur_kernel = 13  # Stronger blur
+            blur_sigma = 5.0  # Stronger sigma
             for (x, y, w, h) in faces:
                 face_roi = image[y:y+h, x:x+w]
                 blurred_face = cv2.GaussianBlur(face_roi, (blur_kernel, blur_kernel), blur_sigma)
                 image[y:y+h, x:x+w] = blurred_face
                 rows, cols = face_roi.shape[:2]
-                M = np.float32([[1, 0.03, 6], [0.03, 1, 6]])  # Stronger shear
+                M = np.float32([[1, 0.04, 8], [0.04, 1, 8]])  # Stronger shear
                 face_roi = cv2.warpAffine(face_roi, M, (cols, rows), borderMode=cv2.BORDER_REPLICATE)
                 image[y:y+h, x:x+w] = face_roi
 
-        alpha = 1.2  # Stronger contrast
-        beta = 15  # Stronger brightness
-        noise_percentage = 0.02  # Stronger noise
-        noise_strength = 10  # Stronger noise strength
-        shuffle_percentage = 0.01  # Stronger pixel shuffling
+        alpha = 1.3  # Stronger contrast
+        beta = 20  # Stronger brightness
+        noise_percentage = 0.03  # Stronger noise
+        noise_strength = 15  # Stronger noise strength
+        shuffle_percentage = 0.015  # Stronger pixel shuffling
         image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
         height, width = image.shape[:2]
         for _ in range(int(height * width * noise_percentage)):
@@ -283,7 +283,7 @@ def process_image(image_path, max_size_mb=10):
             x1, y1 = random.randint(0, width-1), random.randint(0, height-1)
             x2, y2 = random.randint(0, width-1), random.randint(0, height-1)
             image[y1, x1], image[y2, x2] = image[y2, x2], image[y1, x1]
-        noise = np.random.normal(0, 1.5, image.shape).astype(np.float32)  # Stronger Gaussian noise
+        noise = np.random.normal(0, 2.0, image.shape).astype(np.float32)  # Stronger Gaussian noise
         image = image.astype(np.float32) + noise
         image = np.clip(image, 0, 255).astype(np.uint8)
         output_filename = generate_random_filename(prefix="output_")
@@ -296,6 +296,10 @@ def process_image(image_path, max_size_mb=10):
         output_hashes = compute_image_hashes(output_filename)
         if output_hashes:
             logging.info(f"Output image hashes: pHash={output_hashes['phash']}, dHash={output_hashes['dhash']}, aHash={output_hashes['ahash']}")
+            # Verify hash differences
+            if input_hashes and output_hashes:
+                if input_hashes == output_hashes:
+                    logging.warning("Input and output hashes are identical, which should not happen!")
         else:
             logging.warning("Failed to compute output image hashes")
 
